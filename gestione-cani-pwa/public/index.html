@@ -1,60 +1,66 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestione Cani</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#1f497d">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestione Cani</title>
+  
+  <!-- Collegamento PWA e Stili -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4f46e5">
+  <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
-    <header>
-        <h1>🐾 Gestione Cani</h1>
-    </header>
 
-    <main>
-        <!-- Sezione Cani -->
-        <section class="card">
-            <h2>I Tuoi Cani</h2>
-            <div id="lista-cani">Caricamento...</div>
-            <button onclick="mostraFormCane()">+ Aggiungi Cane</button>
-            
-            <form id="form-cane" class="hidden" onsubmit="salvaCane(event)">
-                <input type="text" id="nome-cane" placeholder="Nome" required>
-                <input type="text" id="razza-cane" placeholder="Razza">
-                <input type="date" id="nascita-cane">
-                <input type="text" id="microchip-cane" placeholder="Microchip">
-                <button type="submit">Salva Cane</button>
-            </form>
-        </section>
+  <header>
+    <h1>🐾 Gestione Cani</h1>
+  </header>
 
-        <!-- Sezione Scadenze -->
-        <section class="card">
-            <h2>Prossime Scadenze</h2>
-            <div id="lista-scadenze">Caricamento...</div>
-            <button onclick="mostraFormScadenza()">+ Aggiungi Scadenza</button>
+  <main class="container">
+    <!-- Sezione Selezione / Aggiunta Cane -->
+    <section class="card">
+      <h2>I tuoi Cani</h2>
+      <div id="lista-cani" class="cani-grid"></div>
+      
+      <details class="accordion">
+        <summary>+ Aggiungi un nuovo cane</summary>
 
-            <form id="form-scadenza" class="hidden" onsubmit="salvaScadenza(event)">
-                <select id="select-cane-scadenza" required>
-                    <option value="">Seleziona Cane</option>
-                </select>
-                <input type="text" id="tipo-scadenza" placeholder="Tipo (es. Vaccino, Antiparassitario)" required>
-                <input type="date" id="data-scadenza" required>
-                <input type="text" id="incaricato-scadenza" placeholder="Chi se ne occupa?">
-                <button type="submit">Salva Scadenza</button>
-            </form>
-        </section>
-    </main>
+        <form id="form-cane">
+          <input type="text" id="nome-cane" placeholder="Nome (es. Milo)" required>
+          <input type="text" id="razza-cane" placeholder="Razza">
+          <input type="date" id="nascita-cane">
+          <button type="submit" class="btn btn-primary">Salva Cane</button>
+        </form>
+      </details>
+    </section>
 
-    <script src="js/app.js"></script>
-    <script>
-        // Registrazione Service Worker per installazione PWA
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/js/sw.js')
-                .then(() => console.log('Service Worker registrato con successo!'))
-                .catch(err => console.log('Errore Service Worker:', err));
-        }
-    </script>
+    <!-- Sezione Registrazione Attività -->
+    <section class="card">
+      <h2>Registra Attività</h2>
+      <form id="form-attivita">
+        <label for="select-cane">Seleziona Cane:</label>
+        <select id="select-cane" required></select>
+
+        <label for="tipo-attivita">Tipo Attività:</label>
+        <select id="tipo-attivita" required>
+          <option value="🦮 Uscita">🦮 Uscita / Passeggiata</option>
+          <option value="🍖 Pappa">🍖 Pappa</option>
+          <option value="💊 Farmaco">💊 Farmaco / Medicina</option>
+          <option value="📝 Nota">📝 Nota generale</option>
+        </select>
+
+        <input type="text" id="desc-attivita" placeholder="Note (es. Fatta passeggiata al parco)">
+        <button type="submit" class="btn btn-success">Registra</button>
+      </form>
+    </section>
+
+    <!-- Sezione Storico Attività -->
+    <section class="card">
+      <h2>Ultima Attività Registrata</h2>
+      <ul id="lista-attivita" class="activity-list"></ul>
+    </section>
+  </main>
+
+  <script src="app.js?v=2"></script>
 </body>
 </html>

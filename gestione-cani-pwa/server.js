@@ -1,73 +1,96 @@
 const express = require('express');
-const cors = require('cors');
 const path = require('path');
-const db = require('./database/db');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
+// Middleware per analizzare il corpo delle richieste JSON
 app.use(express.json());
+
+// Servire i file statici dalla cartella 'public'
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- API CANI ---
+// Inizializzazione Supabase tramite le variabili d'ambiente di Render
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
-// Ottieni tutti i cani
-app.get('/api/cani', (req, res) => {
-    db.all('SELECT * FROM cani', [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.error("ATTENZIONE: Variabili SUPABASE_URL e SUPABASE_KEY non trovate nelle variabili d'ambiente!");
+}
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ==========================================
+//           ROTTE API - CANI
+// ==========================================
+
+// Leggi la lista di tutti i cani
+app.get('/api/cani', async (req, res) => {
+  const { data, error } = await supabase.from('cani').select('*');
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
 });
 
 // Aggiungi un nuovo cane
-app.post('/api/cani', (req, res) => {
-    const { nome, razza, data_nascita, microchip, note } = req.body;
-    const sql = `INSERT INTO cani (nome, razza, data_nascita, microchip, note) VALUES (?, ?, ?, ?, ?)`;
-    db.run(sql, [nome, razza, data_nascita, microchip, note], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ id: this.lastID, message: 'Cane aggiunto con successo!' });
-    });
+app.post('/api/cani', async (req, res) => {
+  const { nome, razza, data_nascita } = req.body;
+  const { data, error } = await supabase.from('cani').insert([{ nome, razza, data_nascita }]).select();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data[0]);
 });
 
-// --- API SCADENZE ---
-
-// Ottieni tutte le scadenze con il nome del cane
-app.get('/api/scadenze', (req, res) => {
-    const sql = `
-        SELECT scadenze.*, cani.nome AS nome_cane 
-        FROM scadenze 
-        LEFT JOIN cani ON scadenze.id_cane = cani.id
-        ORDER BY data_scadenza ASC
-    `;
-    db.all(sql, [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+// Cancella un cane (e tutte le sue attività grazie a ON DELETE CASCADE)
+app.delete('/api/cani/:id', async (req, res) => {
+  const { id } = req.params;
+  const { error } = await supabase.from('cani').delete().eq('id', id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ message: 'Cane eliminato con successo' });
 });
 
-// Aggiungi una nuova scadenza
-app.post('/api/scadenze', (req, res) => {
-    const { id_cane, tipo, data_scadenza, incaricato, note } = req.body;
-    const sql = `INSERT INTO scadenze (id_cane, tipo, data_scadenza, incaricato, note) VALUES (?, ?, ?, ?, ?)`;
-    db.run(sql, [id_cane, tipo, data_scadenza, incaricato, note], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ id: this.lastID, message: 'Scadenza aggiunta con successo!' });
-    });
+// ==========================================
+//         ROTTE API - ATTIVITÀ
+// ==========================================
+
+// Leggi la lista di tutte le attività
+app.get('/api/attivita', async (req, res) => {
+  const { data, error } = await supabase
+    .from('attivita')
+    .select('*, cani(nome)')
+    .order('data_ora', { ascending: false });
+    
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
 });
 
-// Cambia stato completamento di una scadenza
-app.patch('/api/scadenze/:id', (req, res) => {
-    const { completato } = req.body;
-    const sql = `UPDATE scadenze SET completato = ? WHERE id = ?`;
-    db.run(sql, [completato ? 1 : 0, req.params.id], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Stato aggiornato!' });
-    });
+// Aggiungi una nuova attività
+app.post('/api/attivita', async (req, res) => {
+  const { cane_id, tipo, descrizione } = req.body;
+  const { data, error } = await supabase.from('attivita').insert([{ cane_id, tipo, descrizione }]).select();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data[0]);
 });
 
-// Avvio Server
-app.listen(PORT, () => {
-    console.log(`Server attivo sulla porta ${PORT}`);
+// Cancella un'attività
+app.delete('/api/attivita/:id', async (req, res) => {
+  const { id } = req.params;
+  const { error } = await supabase.from('attivita').delete().eq('id', id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ message: 'Attività eliminata con successo' });
+});
+
+// ==========================================
+//          ROTTA PRINCIPALE (PWA)
+// ==========================================
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// ==========================================
+//              AVVIO SERVER
+// ==========================================
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server attivo sulla porta ${PORT}`);
 });
