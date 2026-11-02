@@ -3,94 +3,61 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
+const port = process.env.PORT || 3000;
 
-// Middleware per analizzare il corpo delle richieste JSON
+// Configurazione Supabase (Legge dalle variabili d'ambiente di Render o usa valori di fallback)
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
 app.use(express.json());
-
-// Servire i file statici dalla cartella 'public'
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Inizializzazione Supabase tramite le variabili d'ambiente di Render
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error("ATTENZIONE: Variabili SUPABASE_URL e SUPABASE_KEY non trovate nelle variabili d'ambiente!");
-}
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-// ==========================================
-//           ROTTE API - CANI
-// ==========================================
-
-// Leggi la lista di tutti i cani
+// API Cani: LETTURA
 app.get('/api/cani', async (req, res) => {
   const { data, error } = await supabase.from('cani').select('*');
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
 
-// Aggiungi un nuovo cane
+// API Cani: INSERIMENTO
 app.post('/api/cani', async (req, res) => {
-  const { nome, razza, data_nascita } = req.body;
-  const { data, error } = await supabase.from('cani').insert([{ nome, razza, data_nascita }]).select();
+  const { data, error } = await supabase.from('cani').insert([req.body]).select();
   if (error) return res.status(500).json({ error: error.message });
   res.json(data[0]);
 });
 
-// Cancella un cane (e tutte le sue attività grazie a ON DELETE CASCADE)
+// API Cani: ELIMINAZIONE
 app.delete('/api/cani/:id', async (req, res) => {
   const { id } = req.params;
   const { error } = await supabase.from('cani').delete().eq('id', id);
   if (error) return res.status(500).json({ error: error.message });
-  res.json({ message: 'Cane eliminato con successo' });
+  res.json({ success: true });
 });
 
-// ==========================================
-//         ROTTE API - ATTIVITÀ
-// ==========================================
-
-// Leggi la lista di tutte le attività
+// API Attività: LETTURA
 app.get('/api/attivita', async (req, res) => {
-  const { data, error } = await supabase
-    .from('attivita')
-    .select('*, cani(nome)')
-    .order('data_ora', { ascending: false });
-    
+  const { data, error } = await supabase.from('attivita').select('*');
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
 
-// Aggiungi una nuova attività
+// API Attività: INSERIMENTO
 app.post('/api/attivita', async (req, res) => {
-  const { cane_id, tipo, descrizione } = req.body;
-  const { data, error } = await supabase.from('attivita').insert([{ cane_id, tipo, descrizione }]).select();
+  const { data, error } = await supabase.from('attivita').insert([req.body]).select();
   if (error) return res.status(500).json({ error: error.message });
   res.json(data[0]);
 });
 
-// Cancella un'attività
+// API Attività: ELIMINAZIONE
 app.delete('/api/attivita/:id', async (req, res) => {
   const { id } = req.params;
   const { error } = await supabase.from('attivita').delete().eq('id', id);
   if (error) return res.status(500).json({ error: error.message });
-  res.json({ message: 'Attività eliminata con successo' });
+  res.json({ success: true });
 });
 
-// ==========================================
-//          ROTTA PRINCIPALE (PWA)
-// ==========================================
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// ==========================================
-//              AVVIO SERVER
-// ==========================================
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server attivo sulla porta ${PORT}`);
+app.listen(port, () => {
+  console.log(`Server avviato sulla porta ${port}`);
 });

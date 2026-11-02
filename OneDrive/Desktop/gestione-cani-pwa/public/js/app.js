@@ -1,112 +1,87 @@
-document.addEventListener("DOMContentLoaded", () => {
-  // Registrazione Service Worker per PWA
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW Error:', err));
-  }
-
+document.addEventListener('DOMContentLoaded', () => {
   caricaCani();
   caricaAttivita();
 
-  // Form Aggiunta Cane
-  document.getElementById("form-cane").addEventListener("submit", async (e) => {
+  document.getElementById('formCane').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const nome = document.getElementById("nome-cane").value;
-    const razza = document.getElementById("razza-cane").value;
-    const data_nascita = document.getElementById("nascita-cane").value;
+    const nome = document.getElementById('nomeCane').value;
+    const razza = document.getElementById('razzaCane').value;
 
-    await fetch("/api/cani", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nome, razza, data_nascita })
+    await fetch('/api/cani', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, razza })
     });
 
-    document.getElementById("form-cane").reset();
+    document.getElementById('formCane').reset();
+    bootstrap.Modal.getInstance(document.getElementById('modalCane')).hide();
     caricaCani();
   });
 
-  // Form Registrazione Attività
-  document.getElementById("form-attivita").addEventListener("submit", async (e) => {
+  document.getElementById('formAttivita').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const cane_id = document.getElementById("select-cane").value;
-    const tipo = document.getElementById("tipo-attivita").value;
-    const descrizione = document.getElementById("desc-attivita").value;
+    const descrizione = document.getElementById('descAttivita').value;
 
-    await fetch("/api/attivita", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cane_id, tipo, descrizione })
+    await fetch('/api/attivita', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ descrizione })
     });
 
-    document.getElementById("desc-attivita").value = "";
+    document.getElementById('formAttivita').reset();
+    bootstrap.Modal.getInstance(document.getElementById('modalAttivita')).hide();
     caricaAttivita();
   });
 });
 
 async function caricaCani() {
-  const res = await fetch("/api/cani");
+  const res = await fetch('/api/cani');
   const cani = await res.json();
-
-  const listaDiv = document.getElementById("lista-cani");
-  const select = document.getElementById("select-cane");
-
-  listaDiv.innerHTML = "";
-  select.innerHTML = "";
-
+  const lista = document.getElementById('lista-cani');
+  
   if (cani.length === 0) {
-    listaDiv.innerHTML = "<small style='color: #6b7280;'>Nessun cane registrato.</small>";
-  } else {
-    cani.forEach(cane => {
-      listaDiv.innerHTML += `
-        <div class="cane-badge">
-          🐶 ${cane.nome}
-          <button onclick="eliminaCane(${cane.id}, '${cane.nome}')" style="background:none; border:none; color:#ef4444; margin-left:6px; cursor:pointer; font-weight:bold;">✕</button>
-        </div>
-      `;
-      select.innerHTML += `<option value="${cane.id}">${cane.nome}</option>`;
-    });
-  }
-}
-
-async function caricaAttivita() {
-  const res = await fetch("/api/attivita");
-  const attivita = await res.json();
-
-  const listaUl = document.getElementById("lista-attivita");
-  listaUl.innerHTML = "";
-
-  if (attivita.length === 0) {
-    listaUl.innerHTML = "<li style='padding:10px; color:#6b7280;'>Nessuna attività registrata.</li>";
+    lista.innerHTML = '<p class="text-muted">Nessun cane presente.</p>';
     return;
   }
 
-  attivita.slice(0, 15).forEach(act => {
-    const data = new Date(act.data_ora).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' });
-    listaUl.innerHTML += `
-      <li class="activity-item">
-        <div>
-          <strong>${act.cani ? act.cani.nome : 'Cane'}</strong>: ${act.tipo}
-          <br><small>${act.descrizione || ''}</small>
-        </div>
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <span class="activity-time">${data}</span>
-          <button onclick="eliminaAttivita(${act.id})" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:1.1rem;">🗑️</button>
-        </div>
-      </li>
-    `;
-  });
+  lista.innerHTML = cani.map(c => `
+    <div class="list-group-item d-flex justify-content-between align-items-center">
+      <div>
+        <strong>${c.nome}</strong> ${c.razza ? `<span class="text-muted">(${c.razza})</span>` : ''}
+      </div>
+      <button class="btn btn-outline-danger btn-sm" onclick="eliminaCane('${c.id}')" title="Elimina Cane">✕</button>
+    </div>
+  `).join('');
 }
 
-async function eliminaCane(id, nome) {
-  if (confirm(`Sei sicuro di voler eliminare ${nome}? Verranno eliminate anche tutte le sue attività registrate.`)) {
-    await fetch(`/api/cani/${id}`, { method: "DELETE" });
-    caricaCani();
-    caricaAttivita();
+async function eliminaCane(id) {
+  if (!confirm('Vuoi davvero eliminare questo cane?')) return;
+  await fetch(`/api/cani/${id}`, { method: 'DELETE' });
+  caricaCani();
+}
+
+async function caricaAttivita() {
+  const res = await fetch('/api/attivita');
+  const attivita = await res.json();
+  const lista = document.getElementById('lista-attivita');
+  
+  if (attivita.length === 0) {
+    lista.innerHTML = '<p class="text-muted">Nessuna scadenza inserita.</p>';
+    return;
   }
+
+  lista.innerHTML = attivita.map(a => `
+    <div class="list-group-item d-flex justify-content-between align-items-center">
+      <div>
+        <strong>${a.descrizione}</strong>
+      </div>
+      <button class="btn btn-outline-danger btn-sm" onclick="eliminaAttivita('${a.id}')" title="Elimina Attività">🗑️</button>
+    </div>
+  `).join('');
 }
 
 async function eliminaAttivita(id) {
-  if (confirm("Vuoi davvero eliminare questa attività/scadenza?")) {
-    await fetch(`/api/attivita/${id}`, { method: "DELETE" });
-    caricaAttivita();
-  }
+  if (!confirm('Vuoi davvero eliminare questa scadenza?')) return;
+  await fetch(`/api/attivita/${id}`, { method: 'DELETE' });
+  caricaAttivita();
 }
